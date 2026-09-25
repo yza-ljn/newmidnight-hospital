@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>夜班：废弃医院</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;800&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./rosebud-game-defaults.css" />
+    <script src="./rosebud-game-defaults.js" defer></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://esm.sh/three@0.184.0",
+          "three/": "https://esm.sh/three@0.184.0/"
+        }
+      }
+    </script>
+    <style>
+      :root { color-scheme: dark; --red:#b5232e; --cyan:#a8cbc3; }
+      * { box-sizing: border-box; }
+      html, body, #game-container { width:100%; height:100%; margin:0; overflow:hidden; background:#030707; }
+      body { font-family:"Noto Sans SC", sans-serif; touch-action:none; color:#e7eeea; }
+      canvas { display:block; }
+      #ui-container { position:fixed; inset:0; pointer-events:none; z-index:10; }
+      #vignette { position:absolute; inset:0; background:radial-gradient(circle at center, transparent 30%, rgba(0,0,0,.25) 58%, rgba(0,0,0,.9) 100%); mix-blend-mode:multiply; }
+      #danger { position:absolute; inset:0; opacity:0; background:radial-gradient(circle, transparent 20%, rgba(105,0,8,.7)); transition:opacity .15s; }
+      #hud { position:absolute; top:max(5.5vh, env(safe-area-inset-top)); left:4vw; right:4vw; display:flex; justify-content:space-between; align-items:flex-start; text-shadow:0 2px 5px #000; }
+      #chapter-info { position:absolute; top:2vh; left:50%; transform:translateX(-50%); text-align:center; font-family:Orbitron, sans-serif; letter-spacing:0.3em; color:rgba(255,255,255,0.6); font-size:12px; }
+      #objective { max-width:64vw; font-size:clamp(12px,3.2vw,17px); letter-spacing:.04em; }
+      #objective strong { display:block; color:#d7ebe5; font-size:.75em; letter-spacing:.22em; margin-bottom:5px; }
+      #status { display:flex; gap:15px; margin-top:5px; padding:7px 10px; border-left:2px solid #7f9992; background:linear-gradient(90deg,rgba(8,22,20,.8),transparent); font-size:12px; }
+      
+      /* 日记阅读器 */
+      #diary-overlay { display:none; pointer-events:auto; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,0.85); flex-direction:column; justify-content:center; align-items:center; padding:20px; }
+      #diary-content { background:#e8e4d8; color:#2a2825; padding:40px; max-width:500px; width:90%; min-height:300px; box-shadow:0 0 50px rgba(0,0,0,0.5); position:relative; font-family:"Noto Sans SC", serif; line-height:1.8; border:1px solid #c5c0b0; }
+      #diary-content::before { content:''; position:absolute; top:0; left:0; right:0; height:10px; background:rgba(0,0,0,0.05); }
+      #diary-close { margin-top:20px; }
+      
+      /* 理智值滤镜 */
+      #sanity-filter { position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 100px rgba(0,0,0,0); transition:box-shadow 0.5s; mix-blend-mode: overlay; }
+      
+      #mute { pointer-events:auto; min-width:48px; min-height:48px; border:1px solid #5d716c; border-radius:50%; background:rgba(5,12,11,.72); color:white; font-size:20px; }
+      #center-message { position:absolute; top:17%; width:100%; text-align:center; padding:0 8vw; font-weight:800; letter-spacing:.12em; opacity:0; transform:translateY(-8px); transition:.25s; text-shadow:0 2px 8px #000; }
+      #center-message.show { opacity:1; transform:translateY(0); }
+      #crosshair { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border:1px solid rgba(220,240,234,.8); border-radius:50%; }
+      #joystick { pointer-events:auto; position:absolute; left:max(4vw,env(safe-area-inset-left)); bottom:max(7vh,env(safe-area-inset-bottom)); width:118px; height:118px; border-radius:50%; border:1px solid rgba(171,204,195,.25); background:radial-gradient(circle,rgba(81,113,104,.16),rgba(0,0,0,.18)); }
+      #stick { position:absolute; left:38px; top:38px; width:42px; height:42px; border-radius:50%; border:1px solid rgba(213,233,227,.55); background:rgba(119,151,142,.3); transform:translate(0,0); }
+      #actions { position:absolute; right:max(4vw,env(safe-area-inset-right)); bottom:max(7vh,env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
+      .action { pointer-events:auto; min-width:68px; min-height:54px; padding:0 15px; color:#ecf4f1; border:1px solid #6e8d84; border-radius:28px; background:rgba(11,25,22,.7); font:700 13px "Noto Sans SC"; letter-spacing:.1em; box-shadow:0 4px 18px #0008; }
+      .action.active { background:rgba(116,31,36,.85); border-color:#db6b71; }
+      #interact { min-width:88px; display:none; background:rgba(92,26,30,.82); border-color:#c05b60; }
+      #start-screen, #end-screen { pointer-events:auto; position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:10vw; background:radial-gradient(circle at 50% 35%,rgba(24,40,36,.75),rgba(1,4,4,.97) 70%); }
+      #start-screen h1 { margin:0; font-size:clamp(32px,10vw,72px); letter-spacing:.18em; color:#d5dfdc; text-shadow:0 0 28px #79938b55; }
+      #start-screen h1 span { display:block; margin-top:10px; color:#a72b34; font:700 .35em Orbitron; letter-spacing:.4em; }
+      .tagline { max-width:520px; color:#9aaba6; line-height:1.8; font-size:14px; }
+      .primary { min-height:56px; min-width:180px; border:1px solid #947178; color:#fff; background:#55151b; border-radius:4px; font:800 16px "Noto Sans SC"; letter-spacing:.22em; }
+      #end-screen { display:none; }
+      #end-screen h2 { font-size:clamp(35px,10vw,68px); margin:0 0 15px; }
+      #end-screen.win h2 { color:#bfd8cf; } #end-screen.lose h2 { color:#c2333e; }
+      #desktop-hint { font-size:12px; opacity:.55; margin-top:22px; }
+      @media (hover:hover) and (pointer:fine) { #joystick,#actions { opacity:.35; } }
+    </style>
+  
+<style>
+    #rosebud-exported-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        opacity: 1;
+        transition: opacity 500ms ease-in-out;
+    }
+
+    #rosebud-exported-splash.is-hiding {
+        opacity: 0;
+    }
+
+    #rosebud-exported-splash .rosebud-exported-splash__content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        text-align: center;
+        color: #fff;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    #rosebud-exported-splash .rosebud-exported-splash__logo {
+        width: 100px;
+        height: 100px;
+        animation: rosebud-exported-splash-breathe 2.4s ease-in-out infinite;
+    }
+
+    #rosebud-exported-splash .rosebud-exported-splash__text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 16px;
+        line-height: 1.25;
+        letter-spacing: 0.06em;
+    }
+
+    #rosebud-exported-splash .rosebud-exported-splash__text strong {
+        font-weight: 700;
+    }
+
+    #rosebud-exported-splash .rosebud-exported-splash__text span:last-child {
+        opacity: 0.88;
+    }
+
+    @keyframes rosebud-exported-splash-breathe {
+        0%,
+        100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+</style></head>
+  <body>
+<div id="rosebud-exported-splash" aria-live="polite">
+    <div class="rosebud-exported-splash__content">
+        <img
+            class="rosebud-exported-splash__logo"
+            src="__rosebud/rosebud-icon.png"
+            alt="Rosebud Logo"
+            width="100"
+            height="100"
+        />
+        <div class="rosebud-exported-splash__text" aria-label="Rosebud.AI Make Games">
+            <strong>Rosebud.AI</strong>
+            <span>Make Games</span>
+        </div>
+    </div>
+</div>
+    <div id="game-container"></div>
+    <div id="ui-container">
+      <div id="vignette"></div><div id="danger"></div><div id="sanity-filter"></div>
+      <div id="chapter-info">CHAPTER 1: IMPRISONMENT</div>
+      <div id="hud">
+        <div id="objective">
+          <strong>当前目标</strong><span id="objective-text">寻找医院的逃生线索</span>
+          <div id="status">
+            <span id="items-count">物品 0 / 3</span>
+            <span id="story-count">情报 0 / 20</span>
+          </div>
+        </div>
+        <button id="mute" aria-label="静音">♪</button>
+      </div>
+      <div id="center-message"></div><div id="crosshair"></div>
+      <div id="joystick"><div id="stick"></div></div>
+      <div id="actions"><button class="action" id="interact">调查</button><button class="action" id="sprint">冲刺：关</button></div>
+      
+      <!-- 日记阅读器 -->
+      <div id="diary-overlay">
+        <div id="diary-content"></div>
+        <button class="primary" id="diary-close">关闭</button>
+      </div>
+
+      <div id="start-screen"><h1>午夜病院<span>MIDNIGHT HOSPITAL</span></h1><p class="tagline">在这里，真相往往比怪物更恐怖。收集每一份文件，揭开这座废弃医院的黑暗秘密。</p><button class="primary" id="start">进入医院</button><div id="desktop-hint">触屏：左侧移动 · 右侧拖动视角 · 按键交互　|　键鼠：WASD · 鼠标 · Shift · E</div></div>
+      <div id="end-screen"><h2 id="end-title"></h2><p id="end-copy" class="tagline"></p><button class="primary" id="restart">重新开始</button></div>
+    </div>
+    <script type="module" src="main.js"></script>
+    <script src="https://storage.googleapis.com/rosebud_staticfiles/ChatManager.js"></script>
+    <script src="https://storage.googleapis.com/rosebud_staticfiles/ImageGenerator.js"></script>
+    <script src="https://storage.googleapis.com/rosebud_staticfiles/ProgressLogger.js"></script>
+    <script src="https://storage.googleapis.com/rosebud_staticfiles/OGP.js"></script>
+  
+<script>
+    (() => {
+        const splashRoot = document.getElementById('rosebud-exported-splash');
+        if (!splashRoot) return;
+
+        let isReady = false;
+        let isMinimumVisibleTimeElapsed = false;
+        let isHidden = false;
+
+        const maybeHideSplash = () => {
+            if (isHidden || !isReady || !isMinimumVisibleTimeElapsed) return;
+
+            isHidden = true;
+            splashRoot.classList.add('is-hiding');
+            window.setTimeout(() => splashRoot.remove(), 500);
+        };
+
+        const markReady = () => {
+            isReady = true;
+            maybeHideSplash();
+        };
+
+        window.setTimeout(() => {
+            isMinimumVisibleTimeElapsed = true;
+            maybeHideSplash();
+        }, 1000);
+
+        if (document.readyState === 'complete') {
+            markReady();
+        } else {
+            window.addEventListener('load', markReady, { once: true });
+        }
+
+        
+    })();
+</script></body>
+</html>

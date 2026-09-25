@@ -1,0 +1,18 @@
+{
+  "name": "midnight-hospital",
+  "version": "1.0.0",
+  "description": "午夜病院 - 恐怖逃脱游戏",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "build": "echo 'No build needed'"
+  },
+  "keywords": ["game", "horror", "escape"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/android": "^6.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "appId": "com.example.midnighthospital",
+  "appName": "午夜病院",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

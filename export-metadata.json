@@ -1,0 +1,17 @@
+{
+  "name": "午夜病院",
+  "revisionLabel": "把章节逃生做成可持续的追捕循环",
+  "description": "一款单人恐怖追逐生存游戏：玩家被困在废弃医院中，需要探索昏暗的病房与走廊，寻找关键线索和逃生物品，躲避持续追捕的恐怖怪物，最终找到出口并逃出生天。整体氛围紧张、压迫、惊悚。",
+  "mode": "Universal",
+  "exportDate": "2026-09-25T11:57:08.977Z",
+  "rosebudBuiltInSplash": {
+    "present": true,
+    "version": 1
+  },
+  "assetCount": 11,
+  "assetTypes": [
+    "image",
+    "audio",
+    "model"
+  ]
+}
